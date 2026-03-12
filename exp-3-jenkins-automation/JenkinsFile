@@ -1,0 +1,104 @@
+pipeline {
+    agent any
+    
+    options {
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+    
+    environment {
+        PROJECT_ROOT = "${WORKSPACE}/exp-3-jenkins-automation"
+        PYTHON_ENV = 'mlops-exp3'
+    }
+    
+    stages {
+        stage('Setup') {
+            steps {
+                echo '=========================================='
+                echo 'Jenkins ML Training Pipeline'
+                echo '=========================================='
+                script {
+                    sh '''
+                        echo "[STEP] Workspace: ${WORKSPACE}"
+                        echo "[STEP] Project Root: ${PROJECT_ROOT}"
+                        cd ${PROJECT_ROOT}
+                        pwd
+                        ls -la
+                    '''
+                }
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                echo '[STEP] Installing dependencies...'
+                script {
+                    sh '''
+                        cd ${PROJECT_ROOT}
+                        python3 -m pip install --upgrade pip -q
+                        pip install scikit-learn numpy pandas -q
+                        echo "[SUCCESS] Dependencies installed"
+                    '''
+                }
+            }
+        }
+        
+        stage('Train Model') {
+            steps {
+                echo '[STEP] Running training pipeline...'
+                script {
+                    sh '''
+                        cd ${PROJECT_ROOT}
+                        python3 src/pipeline.py
+                    '''
+                }
+            }
+        }
+        
+        stage('Verify Model') {
+            steps {
+                echo '[STEP] Verifying model...'
+                script {
+                    sh '''
+                        cd ${PROJECT_ROOT}
+                        python3 src/verify.py
+                    '''
+                }
+            }
+        }
+        
+        stage('Archive Artifacts') {
+            steps {
+                echo '[STEP] Archiving artifacts...'
+                script {
+                    sh '''
+                        cd ${PROJECT_ROOT}
+                        # Create artifact directory
+                        mkdir -p jenkins-artifacts
+                        cp models/iris_classifier.pkl jenkins-artifacts/ 2>/dev/null || true
+                        cp logs/training.log jenkins-artifacts/ 2>/dev/null || true
+                        ls -la jenkins-artifacts/
+                    '''
+                }
+                archiveArtifacts artifacts: 'exp-3-jenkins-automation/jenkins-artifacts/**', 
+                                 allowEmptyArchive: true
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo '=========================================='
+            echo '[INFO] Pipeline Complete'
+            echo '=========================================='
+            cleanWs()
+        }
+        success {
+            echo '[SUCCESS] Training job passed!'
+        }
+        failure {
+            echo '[FAILED] Training job failed!'
+        }
+    }
+}

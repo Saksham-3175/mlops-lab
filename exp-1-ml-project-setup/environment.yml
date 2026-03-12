@@ -1,0 +1,13 @@
+name: mlops-lab-exp1
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - jupyter
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - pip:
+    - ipython
